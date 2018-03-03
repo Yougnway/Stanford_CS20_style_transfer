@@ -47,7 +47,7 @@ class StyleTransfer(object):
         self.style_layer_w = [0.5, 1.0, 1.5, 3.0, 4.0] 
         self.gstep = tf.Variable(0, dtype=tf.int32,
                                 trainable=False, name='global_step') # global step
-        self.lr = 2
+        self.lr = 2.0
         ###############################
 
     def create_input(self):
@@ -76,6 +76,7 @@ class StyleTransfer(object):
         this mean from our images.
 
         '''
+
         self.vgg = load_vgg.VGG(self.input_img)
         self.vgg.load()
         self.content_img -= self.vgg.mean_pixels
@@ -99,8 +100,8 @@ class StyleTransfer(object):
         #     with tf.Session() as sess:
         #         sess.run(self.input_img.assign(P))
         #         l = sess.run(self.mo)
-        coeff = P.shape[1] * P.shape[2] * P.shape[3]
-        self.content_loss = tf.reduce_sum((F - P) ** 2) / coeff
+        # coeff = (4 * P.shape[1] * P.shape[2] * P.shape[3]) ** 2
+        self.content_loss = tf.reduce_sum((F - P) ** 2) / (4.0 * P.size)
         # return self.content_loss
         ###############################
         
@@ -148,8 +149,16 @@ class StyleTransfer(object):
         ###############################
         ## TO DO
         n_layers = len(self.style_layers)
+        # t = self.vgg.conv2d_relu()
         # t = getattr(self.vgg, self.style_layers[0])
+        # tf.Session.run([getattr(self.vgg, self.style_layers[0])])
+        # t1 = self.style_img
+        # t2 = A[0]
+        # tt = self.input_img.assign(self.style_img)
+        #-------- t=getattr(self.vgg, self.style_layers)
+
         E = [self._single_style_loss(A[i], getattr(self.vgg, self.style_layers[i])) for i in range(n_layers)]
+
         self.style_loss = tf.reduce_sum([self.style_layer_w[i] * E[i] for i in range(n_layers)])
         ###############################
 
@@ -187,10 +196,10 @@ class StyleTransfer(object):
             tf.summary.scalar('content loss', self.content_loss)
             tf.summary.scalar('style loss', self.style_loss)
             tf.summary.scalar('total loss', self.total_loss)
-            tf.summary.histogram('histogram content loss', self.content_loss)
-            tf.summary.histogram('histogram style loss', self.style_loss)
-            tf.summary.histogram('histogram total loss', self.total_loss)
-        self.summary_op = tf.summary.merge_all()
+            # tf.summary.histogram('histogram content loss', self.content_loss)
+            # tf.summary.histogram('histogram style loss', self.style_loss)
+            # tf.summary.histogram('histogram total loss', self.total_loss)
+            self.summary_op = tf.summary.merge_all()
         ###############################
 
 
@@ -210,7 +219,7 @@ class StyleTransfer(object):
             ## 1. initialize your variables
             ## 2. create writer to write your grapp
             ###############################
-            saver = tf.train.Saver()
+
             sess.run(tf.global_variables_initializer())
             writer = tf.summary.FileWriter('graphs_ying',tf.get_default_graph())
             
@@ -221,6 +230,7 @@ class StyleTransfer(object):
             ## 1. create a saver object
             ## 2. check if a checkpoint exists, restore the variables
             ##############################
+            saver = tf.train.Saver()
             ckpt = tf.train.get_checkpoint_state(os.path.dirname('checkpoints/checkpoint'))
             if ckpt and ckpt.model_checkpoint_path:
                 saver.restore(sess, ckpt.model_checkpoint_path)
@@ -262,6 +272,6 @@ class StyleTransfer(object):
 
 if __name__ == '__main__':
     setup()
-    machine = StyleTransfer('content/deadpool.jpg', 'styles/guernica.jpg', 333, 250)
+    machine = StyleTransfer('content/deadpool.jpg', 'styles/starry_night.jpg', 333, 250)
     machine.build()
     machine.train(300)
